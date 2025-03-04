@@ -17,7 +17,7 @@ class AccountCreateRequest extends FormRequest
             'name'      => 'required|string|max:255',
             'email'     => 'required|email|unique:accounts,email',
             'password'  => 'required|string|min:8|confirmed',
-            'account_type' => 'required|string|max:50',
+            'account_type' => 'nullable|uuid',
             'account_id'   => 'nullable|uuid',
         ];
     }

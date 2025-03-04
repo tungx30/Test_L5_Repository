@@ -9,44 +9,25 @@ use Illuminate\Notifications\Notifiable;
 use Packages\Auth\Models\Account;
 use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Model
 {
     use HasFactory, Notifiable, SoftDeletes, HasRoles;
+    use HasUuids;
 
     protected $fillable = [
+        'id',
         'full_name',
         'phone',
         'email',
         'address',
         'status'
     ];
-
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
-
-    /**
-     * JWT - Trả về key định danh người dùng
-     */
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    /**
-     * JWT - Trả về một mảng chứa các claims tùy chỉnh
-     */
-    public function getJWTCustomClaims()
-    {
-        return [];
-    }
-
+    public $incrementing = false; // UUID không phải là số tự động tăng
+    protected $keyType = 'string'; // UUID là chuỗi
+    protected $guard_name = 'web';
     /**
      * Kiểm tra xem người dùng có quyền thực hiện hành động nào đó không
      */
@@ -106,6 +87,12 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->morphOne(Account::class, 'account');
     }
+    public function userAccount()
+    {
+        return $this->hasOne(Account::class, 'account_id');
+    }
+
+
 
 
 }

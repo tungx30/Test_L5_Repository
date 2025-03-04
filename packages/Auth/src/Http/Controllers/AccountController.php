@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Packages\Auth\Http\Requests\AccountCreateRequest;
 use Packages\Auth\Repositories\Contracts\AccountRepository;
 use Illuminate\Support\Facades\Hash;
+use Packages\Auth\Models\Account;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Log;
+
 
 class AccountController extends Controller
 {
@@ -19,88 +22,92 @@ class AccountController extends Controller
     {
         $this->repository = $repository;
     }
-    public function test()
-    {
-        return response()->json(['message' => 'test API ']);
-    }
     public function login(Request $request)
     {
-        $credentials = $request->only(['email', 'password']);
+        $credentials = $request->only('email', 'password');
+        // Tìm user trong bảng accounts thay vì users
+        $account = Account::where('email', $credentials['email'])->first();
 
-        // Kiểm tra xác thực bằng JWTAuth
-        if (! $token = JWTAuth::attempt($credentials)) {
+        if (!$account || !Hash::check($credentials['password'], $account->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Login failed',
                 'errors' => ['Invalid credentials']
             ], 401);
         }
-
-        // Lấy thông tin user từ JWT
-        $user = JWTAuth::user();
-
-        // Lấy thông tin tài khoản liên kết (account_id, account_type)
-        $account = $user->account;
-
-        // Kiểm tra trạng thái tài khoản
-        if ($account && $account->status !== 'ACTIVE') {
-            JWTAuth::invalidate($token);
-            return response()->json([
-                'success' => false,
-                'message' => 'Account is inactive',
-            ], 403);
-        }
-
-        // Kiểm tra vai trò của user
-        $roles = $user->getRoleNames();
-        $permissions = $user->getAllPermissions()->pluck('name');
-
-        // Kiểm tra user thuộc loại nào (Admin, Staff, User)
-        $userType = Role::getText(Role::User);
-        if ($user->hasRole(Role::getText(Role::Admin))) {
-            $userType = 'Admin';
-        } elseif ($user->hasRole(Role::getText(Role::Staff))) {
-            $userType = 'Staff';
-        }
-
-        // Kiểm tra quyền đặc biệt
-        $hasManageUser = $user->hasPermissionTo(Permission::MANAGE_USER);
-        $hasSearchStaff = $user->hasPermissionTo(Permission::SEARCH_STAFF);
-
-        // Dữ liệu trả về
-        $loginData = [
-            'token' => $token,
-            'type' => 'bearer',
-            'expires_in' => JWTAuth::factory()->getTTL() * 60,
-            'user_info' => [
-                'id' => $user->id,
-                'full_name' => $user->full_name,
-                'phone' => $user->phone,
-                'email' => $user->email,
-                'account_id' => $account ? $account->id : null,
-                'account_type' => $account ? $account->account_type : null,
-                'roles' => $roles,
-                'permissions' => $permissions,
-                'user_type' => $userType,
-                'has_manage_user' => $hasManageUser,
-                'has_search_staff' => $hasSearchStaff,
-            ],
-        ];
+        // Tạo JWT token cho account
+        $token = JWTAuth::fromUser($account);
 
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'data' => $loginData
+            'token' => $token,
+            'user_info' => [
+                'id' => $account->id,
+                'name' => $account->name,
+                'email' => $account->email,
+                'account_type' => $account->account_type,
+                'account_id' => $account->account_id,
+            ]
         ], 200);
     }
 
     public function register(AccountCreateRequest $request)
     {
-        $repository = $this->repository->createAccount($this->repository, $request);
+        $data = $this->repository->handleCreateUserAndAccount($this->repository, $request);
         return response()->json([
             'status' => true,
-            'data' => $repository,
-            'message' => 'Account created successfully'
+            'data' => $data,
+            'message' => 'Account created and linked to User successfully'
         ]);
+    }
+    public function logout()
+    {
+        try {
+            $user = Auth::user();
+            // Xóa token hiện tại
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return response()->json([
+                'status' => true,
+                'message' => 'Logout successful.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to logout.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function profile()
+    {
+        try {
+            // Lấy user từ token JWT
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User not found or unauthorized'
+                ], 401);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'User profile retrieved successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'full_name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'address' => $user->address
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

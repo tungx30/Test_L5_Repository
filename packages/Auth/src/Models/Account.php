@@ -1,12 +1,14 @@
 <?php
 
 namespace Packages\Auth\Models;
+
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Foundation\Auth\User as Authenticable;
 use Illuminate\Notifications\Notifiable;
+use Packages\User\Models\User;
 use Spatie\Permission\Traits\HasRoles;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Webpatser\Uuid\Uuid;
@@ -17,6 +19,7 @@ class Account extends Authenticable implements JWTSubject, CanResetPasswordContr
 
     public $keyType = 'string';
     public $incrementing = false;
+    protected $guard_name = 'web';
 
     protected $fillable = [
         'name',
@@ -37,6 +40,12 @@ class Account extends Authenticable implements JWTSubject, CanResetPasswordContr
         static::creating(function ($model) {
             $model->{$model->getKeyName()} = Uuid::generate(4)->string;
         });
+        static::creating(function ($account) {
+            // Nếu account_id rỗng, gán id của chính nó (cho User)
+            if (empty($account->account_id)) {
+                $account->account_id = $account->id;
+            }
+        });
     }
 
     public function getJWTIdentifier()
@@ -56,7 +65,8 @@ class Account extends Authenticable implements JWTSubject, CanResetPasswordContr
     {
         return $this->morphTo(__FUNCTION__, 'account_type', 'account_id');
     }
-    
-
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'account_id');
+    }
 }
-

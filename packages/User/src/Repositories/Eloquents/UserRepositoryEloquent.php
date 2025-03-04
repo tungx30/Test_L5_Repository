@@ -43,7 +43,7 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
         return $this->findWhere(['email' => $email])->first();
     }
 
-    public function createAccount(array $data)
+    public function createUser(array $data)
     {
         $user = $this->create([
             'id' => \Illuminate\Support\Str::uuid(), // Tạo UUID tự động

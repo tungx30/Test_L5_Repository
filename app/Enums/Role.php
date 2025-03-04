@@ -8,9 +8,9 @@ use BenSampo\Enum\Enum;
 
 final class Role extends Enum
 {
-    const Admin = 0;
-    const User  = 1;
-    const Staff = 2;
+    const Admin = 1;
+    const User  = 2;
+    const Staff = 3;
 
     /**
      * Lấy danh sách Role dưới dạng mảng để có thể xuất ra dropdown

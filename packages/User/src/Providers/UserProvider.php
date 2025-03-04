@@ -1,9 +1,7 @@
 <?php
-namespace Packages\Auth\Providers;
+namespace Packages\User\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Packages\Auth\Repositories\Contracts\AccountRepository;
-use Packages\Auth\Repositories\Eloquents\AccountRepositoryEloquent;
 use Packages\User\Repositories\Contracts\UserRepository;
 use Packages\User\Repositories\Eloquents\UserRepositoryEloquent;
 
